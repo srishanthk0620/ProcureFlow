@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+dist/
+build/
+.vite/
+
+# Editors
+.vscode/
+.idea/
+
+# Windows / OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Logs/cache
+*.log
+.cache/
+
+# SQLite temporary files
+*.db-journal
+*.db-shm
+*.db-wal
