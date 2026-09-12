@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { useDemoAuth } from '../../auth/authState'
-import { useLanguage } from '../../i18n/languageState'
+import { useFarmerLanguage as useLanguage } from './useFarmerLanguage'
 export function FarmerLogout() {
   const { logout } = useDemoAuth()
   const { t } = useLanguage()

@@ -1,6 +1,8 @@
+import { PageVisual } from './PageVisual'
+import { useServiceUpdates } from './serviceUpdates'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
-import { useLanguage } from '../../i18n/languageState'
+import { useFarmerLanguage as useLanguage } from './useFarmerLanguage'
 import { farmerServices, moreServices, servicePath } from './farmerServices'
 import { FarmerLogout } from './FarmerLogout'
 import { CentreDiscovery } from './workflows/Centres'
@@ -8,8 +10,9 @@ import { BookingForm } from './workflows/BookingForm'
 import { BookingsPage,LiveStatus,NotificationsPage } from './workflows/BookingViews'
 import { ChatPage,GrievanceForm,InformationPage,SettingsPage } from './workflows/Secondary'
 export function FarmerMore() {
+  const hasUpdate = useServiceUpdates()
   const { t } = useLanguage()
-  return <><p className="eyebrow">{t('farmerHome')}</p><h1>{t('services')}</h1><div className="fh-service-list">{moreServices.map(({ id, key, icon: Icon }) => <Link key={id} to={servicePath(id)}><Icon size={22} aria-hidden="true" /><span>{t(key)}</span><ArrowRight size={17} aria-hidden="true" /></Link>)}<FarmerLogout /></div></>
+  return <><PageVisual title="services"/><div className="fh-service-list">{moreServices.map(({ id, key, icon: Icon }) => <Link key={id} to={servicePath(id)}><span className="pf-icon-wrap"><Icon size={22} aria-hidden="true" />{hasUpdate(id)&&<small className="pf-new-badge">{t('vNew')}</small>}</span><span>{t(key)}</span><ArrowRight size={17} aria-hidden="true" /></Link>)}<FarmerLogout /></div></>
 }
 export function FarmerServicePage({ serviceId }: { serviceId?: string }) {
   const params = useParams()
