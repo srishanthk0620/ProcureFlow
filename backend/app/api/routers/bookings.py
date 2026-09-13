@@ -6,7 +6,7 @@ from app.models.enums import BookingStatus, RoleName
 from app.schemas.core import BookingCreate
 from app.schemas.farmer_api import BookingDetail, CancelRequest
 from app.services.auth_service import Principal
-from app.services.booking_service import cancel_booking, create_booking, list_bookings, owned_booking
+from app.services.booking_service import booking_detail, cancel_booking, create_booking, list_bookings, owned_booking
 
 router = APIRouter(prefix="/api/bookings", tags=["bookings"])
 farmer = require_roles(RoleName.FARMER)
@@ -25,7 +25,7 @@ def listing(active: bool | None = None, history: bool | None = None, status: Boo
 
 @router.get("/{booking_id}", response_model=BookingDetail)
 def detail(booking_id: str, actor: Principal = Depends(farmer), db: Session = Depends(get_db)):
-    return BookingDetail.model_validate(owned_booking(db, actor, booking_id))
+    return booking_detail(db, owned_booking(db, actor, booking_id))
 
 
 @router.post("/{booking_id}/cancel", response_model=BookingDetail)

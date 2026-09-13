@@ -13,7 +13,7 @@ from app.core.errors import AuthUnavailable, Forbidden, RateLimited, Unauthorize
 from app.db.base import utc_now
 from app.db.transactions import serialized_write
 from app.models import AuthSession, FarmerProfile, OtpChallenge, Role, User
-from app.schemas.farmer_api import ChallengeRead, FarmerProfileRead, IdentityRead, SessionRead
+from app.schemas.farmer_api import ChallengeRead, FarmerProfileRead, IdentityRead, SessionRead, StaffProfileRead
 from app.schemas.core import UserRead
 
 from app.models.enums import RoleName
@@ -52,9 +52,14 @@ def token_digest(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def identity(user: User) -> IdentityRead:
-    return IdentityRead(user=UserRead.model_validate(user), farmer_profile=(
-        FarmerProfileRead.model_validate(user.farmer_profile) if user.farmer_profile else None))
+def identity(user: User, staff: bool = False) -> IdentityRead:
+    allowed = {RoleName.STAFF, RoleName.CENTRE_MANAGER} if staff else {RoleName.FARMER}
+    public_user = UserRead.model_validate(user)
+    public_user.roles = [role for role in public_user.roles if role.name in allowed]
+    return IdentityRead(user=public_user, farmer_profile=(
+        FarmerProfileRead.model_validate(user.farmer_profile) if user.farmer_profile else None),
+        staff_profile=StaffProfileRead.model_validate(user.staff_profile) if staff and user.staff_profile else None,
+        permitted_centre_ids=[user.staff_profile.centre_id] if staff and user.staff_profile else [])
 
 
 def principal_for(db: Session, session: AuthSession | None) -> Principal:
@@ -63,8 +68,12 @@ def principal_for(db: Session, session: AuthSession | None) -> Principal:
     user = db.get(User, session.user_id)
     if user is None or not user.is_active:
         raise Unauthorized()
-    return Principal(user.id, frozenset(role.name for role in user.roles),
-        frozenset({user.staff_profile.centre_id}) if user.staff_profile else frozenset(), session.id)
+    permitted = {RoleName.STAFF, RoleName.CENTRE_MANAGER} if session.auth_method == "staff_otp" else {RoleName.FARMER}
+    roles = frozenset(role.name for role in user.roles if role.name in permitted)
+    if not roles or session.auth_method == "staff_otp" and user.staff_profile is None:
+        raise Unauthorized()
+    return Principal(user.id, roles,
+        frozenset({user.staff_profile.centre_id}) if session.auth_method == "staff_otp" and user.staff_profile else frozenset(), session.id)
 
 
 def validate_actor(db: Session, actor: Principal, farmer: bool = False) -> User:
@@ -81,11 +90,12 @@ class DatabaseSessionService:
     def __init__(self, db: Session):
         self.db = db
 
-    def issue(self, user_id: str) -> str:
+    def issue(self, user_id: str, auth_method: str = "farmer_otp") -> str:
         # Called only inside the verified challenge transaction.
         token = secrets.token_urlsafe(32)
         self.db.add(AuthSession(user_id=user_id, token_digest=token_digest(token),
-            environment=settings.APP_ENV, expires_at=utc_now() + timedelta(seconds=settings.SESSION_TTL_SECONDS)))
+            environment=settings.APP_ENV, auth_method=auth_method,
+            expires_at=utc_now() + timedelta(seconds=settings.SESSION_TTL_SECONDS)))
         self.db.flush()
         return token
 

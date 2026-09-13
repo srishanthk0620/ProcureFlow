@@ -287,7 +287,7 @@ def test_openapi_health_and_cors(api):
     response = client.get("/openapi.json")
     assert response.status_code == 200
     assert "/api/centres/recommendations" in response.json()["paths"]
-    assert "/api/auth/staff/login" not in response.json()["paths"]
+    assert "/api/auth/staff/login" in response.json()["paths"]
     assert client.get("/api/health").json()["status"] == "ok"
     response = client.options("/api/bookings", headers={"Origin": "http://localhost:5173", "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "authorization,content-type"})
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"

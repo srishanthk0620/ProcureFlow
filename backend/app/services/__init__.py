@@ -1,1 +1,1 @@
-"""Farmer identity/booking services; Staff queue/disruption interfaces await P6C."""
+"""Authoritative identity, bookings, queue, resource, ETA and notification services."""

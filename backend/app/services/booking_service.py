@@ -11,12 +11,19 @@ from app.db.base import utc_now
 from app.db.transactions import serialized_write
 from app.models.enums import BookingStatus
 from app.services.centre_service import TERMINAL, get_centre, get_commodity, slot_snapshot, validate_visit
+from app.services.eta_service import booking_eta
 
 
 class BookingService(Protocol):
     """Implement owner checks and atomic capacity allocation before exposing APIs."""
     def create(self, actor: Principal, draft: BookingCreate) -> Booking: ...
     def cancel(self, actor: Principal, booking_id: str, expected_version: int) -> Booking: ...
+
+
+def booking_detail(db: Session, booking: Booking) -> BookingDetail:
+    result = BookingDetail.model_validate(booking)
+    result.eta = booking_eta(db, booking)[0]
+    return result
 
 
 def create_booking(db: Session, actor: Principal, draft: BookingCreate) -> BookingDetail:
@@ -38,7 +45,7 @@ def create_booking(db: Session, actor: Principal, draft: BookingCreate) -> Booki
             booking.group_metadata = BookingGroupMetadata(**draft.group_metadata.model_dump())
         db.add(booking)
         db.flush()
-        result = BookingDetail.model_validate(booking)
+        result = booking_detail(db, booking)
     return result
 
 
@@ -63,18 +70,18 @@ def list_bookings(db: Session, actor: Principal, active: bool | None, history: b
         query = query.where(Booking.status == status)
     if group is not None:
         query = query.where(Booking.group_metadata.has() if group else ~Booking.group_metadata.has())
-    return [BookingDetail.model_validate(b) for b in db.scalars(query.order_by(Booking.created_at.desc(), Booking.id))]
+    return [booking_detail(db, b) for b in db.scalars(query.order_by(Booking.created_at.desc(), Booking.id))]
 
 
 def cancel_booking(db: Session, actor: Principal, booking_id: str, payload: CancelRequest):
     with serialized_write(db):
         booking = owned_booking(db, actor, booking_id)
         # Preserve the existing UI rule: cancellation is only allowed before check-in.
-        if booking.version != payload.expected_version or booking.status != BookingStatus.BOOKED:
+        if booking.version != payload.expected_version or booking.status != BookingStatus.BOOKED or booking.queue_entry is not None:
             raise Conflict()
         booking.status = BookingStatus.CANCELLED
         booking.cancelled_at = utc_now()
         booking.cancellation_reason = payload.reason
         db.flush()
-        result = BookingDetail.model_validate(booking)
+        result = booking_detail(db, booking)
     return result

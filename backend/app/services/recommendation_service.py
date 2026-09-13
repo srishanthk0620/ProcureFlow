@@ -9,6 +9,7 @@ from app.models import ProcurementCentre, SlotPolicy
 from app.schemas.farmer_api import CentreSummary, RecommendationRead
 from app.services.centre_service import (get_commodity, list_centres, resource_capacity,
     slot_snapshot, validate_visit)
+from app.services.eta_service import calculate_eta, scheduled_workload
 
 
 @dataclass(frozen=True)
@@ -34,12 +35,12 @@ def estimate_slot(db: Session, centre: ProcurementCentre, commodity, policy: Slo
     Queue excludes terminal bookings and is scoped to the same centre/date/slot.
     """
     snapshot = slot_snapshot(db, centre, commodity, policy, appointment_date, quantity)
-    factor, penalty = resource_capacity(db, centre)
     feasible = snapshot.available
     travel = centre.reference_travel_minutes
-    queue = ceil(snapshot.booked_amount / Decimal(600) * 10 / factor) if feasible else None
-    processing = ceil(quantity / Decimal(600) * 10 / factor) if feasible else None
-    total = travel + queue + processing + penalty if feasible and travel is not None else None
+    work = scheduled_workload(db, centre.id, appointment_date, policy.start_time)
+    eta = calculate_eta(db, centre, work, quantity, travel, available=feasible)
+    queue, processing = eta.queue_eta_minutes, eta.processing_eta_minutes
+    total, penalty = eta.expected_completion_minutes, eta.disruption_penalty_minutes
     reason = ("Reference travel + same-slot queued workload + requested processing + disruption delay. "
               "Deterministic prototype estimate, not live navigation.") if feasible else "Unavailable: centre, resources, units or remaining slot capacity do not permit this quantity."
     if feasible and travel is None:

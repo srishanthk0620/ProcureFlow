@@ -1,1 +1,1 @@
-"""Only implemented Farmer identity, catalog and booking routers are registered."""
+"""Implemented identity, Farmer, Staff operations and notification routers."""

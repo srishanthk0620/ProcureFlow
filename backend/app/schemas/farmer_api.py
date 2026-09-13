@@ -1,8 +1,9 @@
 from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Literal
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, SecretStr
 from app.schemas.core import Input, Read, UserRead, BookingRead, CommodityRead, Quantity
+from app.schemas.eta import EtaRead
 
 
 class MobileRequest(Input):
@@ -27,9 +28,23 @@ class FarmerProfileRead(Read):
     state: str
 
 
+class StaffProfileRead(Read):
+    employee_code: str
+    centre_id: str
+
+
+class StaffLogin(Input):
+    # Password whitespace is significant and must not be stripped.
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=False)
+    identifier: str = Field(min_length=1, max_length=80, pattern=r"^[A-Za-z0-9_.@-]+$")
+    password: SecretStr = Field(min_length=1, max_length=1024)
+
+
 class IdentityRead(Read):
     user: UserRead
     farmer_profile: FarmerProfileRead | None
+    staff_profile: StaffProfileRead | None = None
+    permitted_centre_ids: list[str] = Field(default_factory=list)
 
 
 class SessionRead(IdentityRead):
@@ -52,6 +67,7 @@ class CentreSummary(Read):
 class BookingDetail(BookingRead):
     centre: CentreSummary
     commodity: CommodityRead
+    eta: EtaRead | None = None
 
 
 class SlotRead(Read):

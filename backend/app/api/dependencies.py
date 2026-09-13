@@ -31,3 +31,17 @@ def require_roles(*allowed: RoleName):
             raise Forbidden()
         return principal
     return authorize
+
+
+require_staff = require_roles(RoleName.STAFF)
+require_staff_or_manager = require_roles(RoleName.STAFF, RoleName.CENTRE_MANAGER)
+
+
+def require_centre_access(centre_id: str | None = None,
+                          actor: Principal = Depends(require_staff_or_manager),
+                          db: Session = Depends(get_db)) -> str:
+    from app.services.authorization import centre_access
+    try:
+        return centre_access(db, actor, centre_id)
+    finally:
+        db.rollback()

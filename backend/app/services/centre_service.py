@@ -6,6 +6,7 @@ from app.core.errors import InvalidRequest, NotFound
 from app.models import Booking, Commodity, ProcurementCentre, SlotPolicy, Disruption
 from app.models.enums import BookingStatus, DisruptionStatus, OperatingStatus, ResourceType
 from app.schemas.farmer_api import SlotRead
+from app.services.resource_service import resources_snapshot
 
 TERMINAL = (BookingStatus.CANCELLED, BookingStatus.COMPLETED)
 CRITICAL = (ResourceType.GATE, ResourceType.QUALITY_DESK, ResourceType.WEIGHBRIDGE, ResourceType.STAFF)
@@ -49,19 +50,8 @@ def list_centres(db: Session, commodity: str | None, district: str | None, activ
 
 
 def resource_capacity(db: Session, centre: ProcurementCentre) -> tuple[Decimal, int]:
-    incidents = list(db.scalars(select(Disruption).where(Disruption.centre_id == centre.id,
-        Disruption.status == DisruptionStatus.ACTIVE)))
-    resources = {r.resource_type: r for r in centre.resources}
-    fractions = []
-    for kind in CRITICAL:
-        resource = resources.get(kind)
-        if resource is None or resource.total_count <= 0:
-            fractions.append(Decimal(0))
-        else:
-            working = max(0, resource.active_count - sum(d.resource_type == kind for d in incidents))
-            fractions.append(Decimal(working) / resource.total_count)
-    penalty = sum({"low": 5, "medium": 15, "high": 30}[d.severity.value] for d in incidents)
-    return min(fractions), penalty
+    factor, penalty, _ = resources_snapshot(db, centre)
+    return factor, penalty
 
 
 def booked_amount(db: Session, centre_id: str, appointment_date: date, start_time: time) -> Decimal:
