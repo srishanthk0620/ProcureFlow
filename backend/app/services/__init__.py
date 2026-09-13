@@ -1,1 +1,1 @@
-"""Domain interfaces only. No scheduling or authentication workflows implemented yet."""
+"""Farmer identity/booking services; Staff queue/disruption interfaces await P6C."""

@@ -1,5 +1,5 @@
 """Explicit, additive development seed. Requires migrations to have run first."""
-from datetime import date
+from datetime import date, time
 from decimal import Decimal
 from uuid import NAMESPACE_URL, uuid5
 
@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models import (CentreResource, Commodity, FarmerProfile, PriceRecord,
-                        ProcurementCentre, Role, StaffProfile, User)
+                        ProcurementCentre, Role, SlotPolicy, StaffProfile, User)
 from app.models.enums import ResourceType, RoleName
 
 
@@ -51,6 +51,11 @@ def seed_development(session: Session, environment: str) -> None:
             session.add(centre)
         centres[code] = centre
         session.flush()
+        for hour in (9, 11, 14):
+            policy = session.scalar(select(SlotPolicy).where(SlotPolicy.centre_id == centre.id, SlotPolicy.start_time == time(hour)))
+            if policy is None:
+                session.add(SlotPolicy(id=seed_id(code + ":slot:" + str(hour)), centre_id=centre.id,
+                    start_time=time(hour), end_time=time(hour + 2), capacity=Decimal(3000), unit="kg"))
         for resource_type, total in [(ResourceType.GATE, 3), (ResourceType.QUALITY_DESK, 2),
                                      (ResourceType.WEIGHBRIDGE, 2), (ResourceType.STAFF, 7)]:
             exists = session.scalar(select(CentreResource).where(

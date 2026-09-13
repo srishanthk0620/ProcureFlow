@@ -1,1 +1,1 @@
-"""No unfinished business routers are registered in the foundation phase."""
+"""Only implemented Farmer identity, catalog and booking routers are registered."""
