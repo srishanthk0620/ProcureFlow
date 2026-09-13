@@ -6,6 +6,7 @@ class Settings(BaseSettings):
 
     APP_NAME: str = "ProcureFlow API"
     APP_ENV: str = "development"
+    DATABASE_URL: str = "sqlite:///./procureflow.db"
 
 
 settings = Settings()
